@@ -1,5 +1,8 @@
 package apresentacao;
+import java.text.ParseException;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.Scanner;
 
 import org.bson.types.ObjectId;
@@ -11,7 +14,7 @@ public class Main {
 	static Scanner in = new Scanner(System.in);
 	static Sistema sistema = new Sistema();
 	
-	public static void main(String[] args) {
+	public static void main(String[] args) throws ParseException {
 		int op = -1;
 		while(op != 0) {
 			System.out.println("Escolha uma opção:");
@@ -40,7 +43,7 @@ public class Main {
 	
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////	
 
-	public static void emprestimos_opcoes() {
+	public static void emprestimos_opcoes() throws ParseException {
 		int op = -1;
 		while(op != 0) {
 			System.out.println("Escolha uma opção:");
@@ -140,17 +143,114 @@ public class Main {
 	
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////	
 	
-	public static void cadastrar_emprestimo() {}
+	public static int cadastrar_emprestimo() throws ParseException {
+		listar_exemplares();
+		System.out.println("Digite o número de índice do exemplar.");
+		int op = in.nextInt();
+		in.nextLine();
+		
+		//pegar id do exemplar do emprestimo		
+		ObjectId id_exemplar = sistema.select_exemplares().get(op).getId();
+		
+		//verificar emprestimo em aberto com o exemplar
+		for(int i=0;i<sistema.select_emprestimos().size();i++) {
+			if(sistema.select_emprestimos().get(i).getId_exemplar().equals(id_exemplar) && sistema.select_emprestimos().get(i).getStatus().equals("Aberto")) {
+				System.out.println("Exemplar emprestado no momento!");
+				return 0;
+			}
+		}
+		
+		Emprestimo emprestimo = new Emprestimo();
+		emprestimo.setId_exemplar(id_exemplar);
+		
+		System.out.println("Funcionários:");
+		listar_funcionarios();
+		
+		System.out.println("Digite o número do índice do funcionario.");
+		op = in.nextInt();
+		in.nextLine();
+		
+		emprestimo.setId_funcionario(sistema.select_funcionarios().get(op).getId());
+		
+		System.out.println("Usuários:");
+		listar_usuarios();
+		
+		System.out.println("Digite o número do índice do usuário.");
+		op = in.nextInt();
+		in.nextLine();
+		
+		ObjectId id_usuario = sistema.select_usuarios().get(op).getId();
+		emprestimo.setId_usuario(id_usuario);
+				
+		System.out.println("Digite a data de realização do empréstimo.");
+		String string_data_emprestimo = in.next();
+		Date data_formatada_emprestimo = new SimpleDateFormat("yyyy-MM-dd").parse(string_data_emprestimo);
+		emprestimo.setData_emprestimo(data_formatada_emprestimo);
+		in.nextLine();
+		
+		int tempo_emprestimo=0;
+				
+		ObjectId id_categoria_usuario = sistema.select_usuario(id_usuario).getId_categoria();
+		for(int i=0;i<sistema.select_categorias().size();i++) {
+			if(sistema.select_categorias().get(i).getId().equals(id_categoria_usuario)){
+				tempo_emprestimo=sistema.select_categorias().get(i).getTempo_emprestimo();
+			}
+		}	
+		System.out.println("\n"+tempo_emprestimo+"\n");
+		
+		@SuppressWarnings("deprecation")
+		Date nova_data = new Date(data_formatada_emprestimo.getDay()+tempo_emprestimo);
+		
+		emprestimo.setData_estipulada_entrega(nova_data);
+		emprestimo.setData_real_entrega(null);
+		emprestimo.setMulta(0);
+		emprestimo.setRenovacoes(0);
+		emprestimo.setStatus("Aberto");
+		
+		sistema.add_emprestimo(emprestimo);
+				
+		return 1;
+	}
 	
 	public static void devolver_exemplar() {}
 	
-	public static void visualizar_emprestimos() {}
+	public static void visualizar_emprestimos() {
+		for(int i=0;i<sistema.select_emprestimos().size();i++) {
+			System.out.println(sistema.select_emprestimos().get(i).toString());
+		}
+	}
 	
-	public static void visualizar_emprestimo() {}
+	public static void visualizar_emprestimo() {
+		System.out.println("Usuários:");		
+		listar_usuarios();
+		
+		System.out.println("Digite o índice do usuario que deseja visualizar os empréstimos:");
+		int op = in.nextInt();
+		in.nextLine();
+		
+		ObjectId id_usuario = sistema.select_usuarios().get(op).getId();
+		
+		for(int i=0;i<sistema.select_emprestimos().size();i++) {
+			if(sistema.select_emprestimos().get(i).getId_usuario().equals(id_usuario)) {
+				System.out.println(sistema.select_emprestimos().get(i).toString());
+			}
+		}
+	}
 	
 	public static void renovar_emprestimo() {}
 	
-	public static void pagar_multa() {}
+	public static void pagar_multa() {
+		visualizar_emprestimos();
+		
+		System.out.println("Digite o número do índice do emprestimo que deseja retirar a multa.");
+		int op = in.nextInt();
+		in.nextLine();
+		
+		Emprestimo emprestimo = new Emprestimo();
+		emprestimo = sistema.select_emprestimos().get(op);
+		emprestimo.setMulta(0);
+		sistema.edit_emprestimo(emprestimo);
+	}
 	
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////	
 	
@@ -206,12 +306,30 @@ public class Main {
 			if(exemplares_com_reserva.get(i).getId_user_reserva()!=null){
 				System.out.print(j);
 				j++;
-				System.out.println("\t"+exemplares_com_reserva.get(i).toString());
+				System.out.println("\t"+exemplares_com_reserva.get(i).toString()+sistema.select_usuario(exemplares_com_reserva.get(i).getId_user_reserva()).toString());
 			}
 		}
 	}
 	
-	public static void visualizar_reserva() {}
+	public static void visualizar_reserva() {
+		listar_usuarios();
+		System.out.println("Digite o índice do usuario que deseja ver as reservas:");
+		int op = in.nextInt();
+		in.nextLine();
+		
+		ObjectId id_usuario = sistema.select_usuarios().get(op).getId();
+		
+		ArrayList<Exemplar> exemplares = new ArrayList<Exemplar>();
+		exemplares=sistema.select_exemplares();
+		for(int i=0;i<exemplares.size();i++) {
+			if(exemplares.get(i).getId_user_reserva()!=null) {
+				if(exemplares.get(i).getId_user_reserva().equals(id_usuario)) {
+					System.out.println(exemplares.get(i).toString());
+				}
+			}
+			
+		}		
+	}
 	
 	public static void remover_reserva() {
 		ArrayList<Exemplar> exemplares = new ArrayList<Exemplar>();

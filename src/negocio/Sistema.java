@@ -58,10 +58,12 @@ public class Sistema {
 	}
 	
 	public void add_emprestimo(Emprestimo emprestimo){
+		emprestimo_mongo = EmprestimoDAOMongo.getInstance();
 		emprestimo_mongo.insert(emprestimo);
 	}
 	
 	public void edit_emprestimo(Emprestimo emprestimo){
+		emprestimo_mongo = EmprestimoDAOMongo.getInstance();
 		emprestimo_mongo.update(emprestimo);
 	}
 	
