@@ -198,6 +198,7 @@ public class Main {
 		}	
 		System.out.println("\n"+tempo_emprestimo+"\n");
 		
+		//data ta zoada
 		@SuppressWarnings("deprecation")
 		Date nova_data = new Date(data_formatada_emprestimo.getDay()+tempo_emprestimo);
 		
@@ -212,7 +213,66 @@ public class Main {
 		return 1;
 	}
 	
-	public static void devolver_exemplar() {}
+	public static int devolver_exemplar() throws ParseException {
+		
+		ArrayList<Exemplar> exemplares_com_emprestimo = new ArrayList<Exemplar>();
+		
+		for(int i=0;i<sistema.select_emprestimos().size();i++) {
+			exemplares_com_emprestimo.add(sistema.select_exemplar(sistema.select_emprestimos().get(i).getId_exemplar()));
+		}
+		
+		for(int i=0;i<exemplares_com_emprestimo.size();i++) {
+			System.out.println(exemplares_com_emprestimo.get(i).toString());
+		}
+		System.out.println("Digite o número do índice do exemplar que deseja devolver.");
+		int op = in.nextInt();
+		in.nextLine();
+		
+		ObjectId id_exemplar=sistema.select_exemplares().get(op).getId();
+		
+		for(int i=0;i<sistema.select_emprestimos().size();i++) {
+			if(sistema.select_emprestimos().get(i).getId_exemplar().equals(id_exemplar) && sistema.select_emprestimos().get(i).getStatus().contentEquals("Aberto")) {
+				Emprestimo emprestimo = new Emprestimo();
+		
+				System.out.println("Digite a data de devolucao.");
+				String string_data = in.next();
+				Date data_formatada = new SimpleDateFormat("yyyy-MM-dd").parse(string_data);
+				in.nextLine();
+				emprestimo.setData_real_entrega(data_formatada);
+						
+				Date data_estipulada = sistema.select_emprestimos().get(i).getData_estipulada_entrega();
+				double diferenca_dias = (double) ((data_formatada.getTime() - data_estipulada.getTime()) / (1000*60*60*24));
+				
+				ObjectId id_usuario=sistema.select_emprestimos().get(i).getId_usuario();
+				ObjectId id_categoria = sistema.select_usuario(id_usuario).getId_categoria();
+				double tarifa= sistema.select_categoria(id_categoria).getTarifa();				
+				
+				double multa=diferenca_dias*tarifa;
+				
+				ObjectId id_emprestimo = sistema.select_emprestimos().get(i).getId();
+				ObjectId id_funcionario = sistema.select_emprestimos().get(i).getId_funcionario();				
+				
+				emprestimo.setId_usuario(id_usuario);
+				emprestimo.setId_funcionario(id_funcionario);
+				emprestimo.setId_exemplar(id_exemplar);
+				
+				emprestimo.setData_emprestimo(sistema.select_emprestimos().get(i).getData_emprestimo());
+				emprestimo.setData_estipulada_entrega(sistema.select_emprestimos().get(i).getData_estipulada_entrega());
+				
+				emprestimo.setMulta(multa);
+				emprestimo.setRenovacoes(sistema.select_emprestimos().get(i).getRenovacoes());
+				emprestimo.setStatus("Livro Devolvido");
+				
+				emprestimo.setId(id_emprestimo);
+				
+				System.out.println(emprestimo.toString());
+				sistema.edit_emprestimo(emprestimo);
+				return 1;				
+			}
+		}
+		System.out.println("Não há empréstimos em aberto com este exemplar");
+		return 0;
+	}
 	
 	public static void visualizar_emprestimos() {
 		for(int i=0;i<sistema.select_emprestimos().size();i++) {
@@ -237,7 +297,70 @@ public class Main {
 		}
 	}
 	
-	public static void renovar_emprestimo() {}
+	@SuppressWarnings("deprecation")
+	public static int renovar_emprestimo() throws ParseException {
+		
+		ArrayList<Exemplar> exemplares_com_emprestimo_em_aberto = new ArrayList<Exemplar>();
+		boolean tem_emprestimos_em_aberto = false;
+		
+		for(int i=0;i<sistema.select_emprestimos().size();i++) {
+			if(sistema.select_emprestimos().get(i).getStatus().equals("Aberto")){
+				exemplares_com_emprestimo_em_aberto.add(sistema.select_exemplar(sistema.select_emprestimos().get(i).getId_exemplar()));
+				tem_emprestimos_em_aberto = true;
+			}
+		}
+
+		if(tem_emprestimos_em_aberto==false) {
+			System.out.println("Não há empréstimos em aberto!");
+			return 0;
+		}
+		for(int i=0;i<exemplares_com_emprestimo_em_aberto.size();i++) {
+			System.out.println(exemplares_com_emprestimo_em_aberto.get(i).toString());
+		}
+		System.out.println("Digite o número de índice do exemplar que deseja renovar.");
+		int op = in.nextInt();
+		in.nextLine();
+		
+		ObjectId id_exemplar = sistema.select_exemplares().get(op).getId();
+		
+		for(int i=0;i<sistema.select_emprestimos().size();i++) {
+			if(sistema.select_emprestimos().get(i).getId_exemplar().equals(id_exemplar) && sistema.select_emprestimos().get(i).getStatus().contentEquals("Aberto") &&  sistema.select_emprestimos().get(i).getRenovacoes()<3) {
+				
+				if(sistema.select_emprestimos().get(i).getMulta()!=0) {
+					System.out.println("Empréstimo com multa!\nÉ necessário pagar a multa antes de renovar o empréstimo!");
+				}
+				else {
+					Emprestimo emprestimo = new Emprestimo();
+					
+					System.out.println("Digite nova data do emprestimo.");
+					String string_data = in.next();
+					Date data_formatada = new SimpleDateFormat("yyyy-MM-dd").parse(string_data);
+					in.nextLine();
+					emprestimo.setData_emprestimo(data_formatada);				
+					
+					ObjectId id_usuario=sistema.select_emprestimos().get(i).getId_usuario();	
+					ObjectId id_categoria=sistema.select_usuario(id_usuario).getId_categoria();
+													
+					int tempo_emprestimo = sistema.select_categoria(id_categoria).getTempo_emprestimo();
+					data_formatada.setDate(data_formatada.getDate()+tempo_emprestimo);
+					
+					ObjectId id_emprestimo=sistema.select_emprestimos().get(i).getId();
+					ObjectId id_funcionario = sistema.select_emprestimos().get(i).getId_funcionario();
+					
+					emprestimo.setId(id_emprestimo);
+					emprestimo.setId_usuario(id_usuario);
+					emprestimo.setId_funcionario(id_funcionario);
+					emprestimo.setId_exemplar(id_exemplar);				
+					emprestimo.setData_estipulada_entrega(data_formatada);
+					emprestimo.setData_real_entrega(null);
+					emprestimo.setMulta(0);
+					emprestimo.setRenovacoes(sistema.select_emprestimos().get(i).getRenovacoes()+1);
+					sistema.edit_emprestimo(emprestimo);
+				}				
+			}
+		}
+		return 1;
+	}
 	
 	public static void pagar_multa() {
 		visualizar_emprestimos();

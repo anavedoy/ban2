@@ -23,6 +23,7 @@ public class Sistema {
 	
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////	
 	public Categoria select_categoria(ObjectId id){
+		categoria_mongo = CategoriaDAOMongo.getInstance();
 		Categoria categoria = categoria_mongo.select(id);
 		return categoria;
 	}
